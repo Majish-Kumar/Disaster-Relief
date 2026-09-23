@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civic Disaster Relief Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header class="glass-panel top-bar">
+      <div class="logo" style="display: flex; align-items: center;">
+        <span style="font-weight: 700; letter-spacing: 0.05em; font-size: 1.1rem;">EXECUTIVE CONSOLE</span>
+      </div>
+      <div class="header-controls" style="display: flex; align-items: center; gap: 1.5rem;">
+        <button id="theme-toggle" class="cyber-btn sm" style="width: auto; padding: 0.5rem 1rem; border: 1px solid var(--border-color); background: transparent; display: flex; align-items: center; gap: 0.5rem;" title="Toggle Theme">
+          <span id="theme-icon">☀️ Day Mode</span>
+        </button>
+        <div class="status-indicator">
+          <div class="glow-dot" id="ws-indicator"></div>
+          <span id="ws-status">Telemetry Disconnected</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <aside class="glass-panel control-panel" style="padding: 20px; gap: 16px;">
+        <div class="tab-group" style="display: flex; gap: 4px; background: rgba(0,0,0,0.1); padding: 4px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 0;">
+          <button class="tab-btn active" data-tab="simulation" style="flex: 1; padding: 6px; border: none; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; transition: all 0.2s;">SIMULATION</button>
+          <button class="tab-btn" data-tab="field-sync" style="flex: 1; padding: 6px; border: none; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; transition: all 0.2s;">FIELD SYNC</button>
+          <button class="tab-btn" data-tab="telemetry" style="flex: 1; padding: 6px; border: none; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; transition: all 0.2s;">TELEMETRY</button>
+        </div>
+
+        <!-- Temporal Context Widget -->
+        <div class="temporal-widget" style="background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px; margin-top: 4px; box-shadow: inset 0 0 20px rgba(0,0,0,0.05);">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+            <div style="display: flex; flex-direction: column;">
+              <span id="live-time" style="font-size: 24px; font-weight: 300; letter-spacing: -0.02em; color: var(--text-primary); font-variant-numeric: tabular-nums;">--:--:--</span>
+              <span id="live-date" style="font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--primary-accent); text-transform: uppercase;">-- --- ----</span>
+            </div>
+            <div style="text-align: right; display: flex; flex-direction: column;">
+              <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-secondary); text-transform: uppercase;">Status</span>
+              <span style="font-size: 12px; font-weight: 600; color: #10B981;">ACTIVE</span>
+            </div>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+              <span style="color: var(--text-secondary); font-weight: 500;">Last Rainfall:</span>
+              <span style="color: var(--text-primary); font-weight: 600;">4 hrs ago</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+              <span style="color: var(--text-secondary); font-weight: 500;">Duration:</span>
+              <span style="color: var(--text-primary); font-weight: 600;">72 mins (Heavy)</span>
+            </div>
+          </div>
+        </div>
+
+        
+        <div id="simulation-tab" class="tab-content" style="display: block;">
+          <div class="sidebar-section" style="margin-top: 16px;">
+            <h3 style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #475569; margin-bottom: 8px;">⚙️ SIMULATION SCENARIO</h3>
+            <select id="scenario-select" class="custom-select" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 500; margin-bottom: 8px;">
+              <option value="flooded">Flooded Bridge Cuts</option>
+              <option value="emergency">Emergency Supply Push</option>
+              <option value="normal">Normal Flow (Default)</option>
+            </select>
+            <button id="compute-btn" style="width: 100%; padding: 10px; background: #0f172a; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 12px; letter-spacing: 0.1em; cursor: pointer;">COMPUTE MAX FLOW</button>
+          </div>
+
+          <div class="results-panel" id="results-panel" style="display: none; margin-top: 16px;">
+            <h3>Analysis Complete</h3>
+            <div class="metric">
+              <span class="label">Max Sustainable Flow:</span>
+              <span class="stat-val" id="val-flow">--</span>
+            </div>
+            <div class="bottlenecks-list">
+              <h4>Critical Bottlenecks:</h4>
+              <ul id="list-bottlenecks">
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- CRDT Offline Simulator -->
+        <div id="field-sync-tab" class="tab-content" style="display: none;">
+          <h3 style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #475569; margin: 16px 0 0 0;">📡 FIELD WORKER OFFLINE SYNC</h3>
+          
+          <div class="crdt-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-top: 16px;">
+            <span class="mode-status" id="crdt-mode">🟢 ONLINE</span>
+            <label class="switch">
+              <input type="checkbox" id="crdt-toggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+          
+          <div class="crdt-controls" style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-family: -apple-system, sans-serif; font-size: 12px; font-weight: 600; color: #64748b;">Resource:</label>
+              <select id="resource-select" class="cyber-select-small" style="width: 100%; box-sizing: border-box;">
+                <option value="Ready-to-Eat Food Packs (Rations)">Ready-to-Eat Food Packs (Rations)</option>
+                <option value="20L Drinking Water Crates">20L Drinking Water Crates</option>
+                <option value="First-Aid & Tetanus Medical Kits">First-Aid & Tetanus Medical Kits</option>
+                <option value="Infant Care & Milk Powder">Infant Care & Milk Powder</option>
+                <option value="Inflatable Rescue Boats">Inflatable Rescue Boats</option>
+              </select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-family: -apple-system, sans-serif; font-size: 12px; font-weight: 600; color: #64748b;">Qty:</label>
+              <input type="number" id="quantity-input" value="10" class="cyber-input" style="width: 100%; box-sizing: border-box;">
+            </div>
+            <button id="log-op-btn" class="cyber-btn sm" style="width: 100%; padding: 0.6rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">LOG</button>
+          </div>
+
+          <div style="margin: 16px 0 0 0; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 80px;">
+            <h4 style="margin-top: 0; font-size: 12px; color: #475569;">Local Operations Queue (<span id="queue-count">0</span>)</h4>
+            <ul id="local-queue-container" style="margin: 0; padding-left: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px;"></ul>
+          </div>
+
+          <button id="sync-crdt-btn" class="cyber-btn primary" style="margin-top: 16px; width: 100%;">SYNC TO LEDGER</button>
+          <div id="crdt-status-badge" class="badge-success hidden" style="margin-top: 8px;">State Reconciled (No Database Locks)</div>
+        </div>
+
+        <!-- Embedded Telemetry Feed -->
+        <div id="telemetry-tab" class="tab-content" style="display: none;">
+          <div class="telemetry-header" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+            <h3 style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #475569; margin: 0;">LIVE TELEMETRY</h3>
+            <div class="status-badge" id="telemetry-badge" style="font-size: 0.75rem;">🟢 Connected</div>
+          </div>
+          <div class="telemetry-log" id="telemetry-feed" style="height: 300px; padding: 12px; margin-top: 12px; background: var(--panel-bg); color: var(--primary-accent); font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; border-radius: 8px; border: 1px solid var(--border-color); white-space: nowrap; overflow-x: auto; overflow-y: auto; box-shadow: inset 0 0 10px rgba(0,0,0,0.05);">
+            <!-- Logs injected here -->
+          </div>
+        </div>
+
+      </aside>
+
+      <div class="glass-panel map-container">
+        <!-- Leaflet Map Container -->
+        <div id="map"></div>
+        <div class="map-overlay" style="pointer-events: none; z-index: 1000; position: absolute; top: 0; left: 0; padding: 1.5rem;">
+          <h2 class="map-title" style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0;">Supply Network Map</h2>
+          <p class="map-subtitle" style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; font-size: 14px; font-weight: 500; margin-top: 4px; letter-spacing: 0.01em;">Visualizing flow from Hubs (S) to Flood Zones (T)</p>
+        </div>
+        
+        <!-- Environmental Telemetry Panel -->
+        <div class="environmental-panel">
+          <h3 class="env-title">METEOROLOGICAL TELEMETRY</h3>
+          <div class="env-grid">
+            <div class="env-item">
+              <span class="env-icon">🌧️</span>
+              <div class="env-data">
+                <span class="env-label">Rainfall Rate</span>
+                <span class="env-value">45 mm/hr <span style="color: var(--alert-accent); font-size: 10px;">(HEAVY)</span></span>
+              </div>
+            </div>
+            <div class="env-item">
+              <span class="env-icon">🌡️</span>
+              <div class="env-data">
+                <span class="env-label">Temp / Humid</span>
+                <span class="env-value">26°C / 88%</span>
+              </div>
+            </div>
+            <div class="env-item">
+              <span class="env-icon">🌊</span>
+              <div class="env-data">
+                <span class="env-label">Est. Stagnation</span>
+                <span class="env-value">1.5m Depth <span style="color: var(--alert-accent); font-size: 10px;">(CRITICAL)</span></span>
+              </div>
+            </div>
+            <div class="env-item">
+              <span class="env-icon">📈</span>
+              <div class="env-data">
+                <span class="env-label">Projection</span>
+                <span class="env-value">Rising +0.2m/hr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const buttons = document.querySelectorAll('.tab-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          // Clear active classes
+          buttons.forEach(b => {
+            b.classList.remove('active');
+            b.style.background = 'transparent';
+            b.style.color = '#64748b';
+          });
+          // Highlight clicked button
+          btn.classList.add('active');
+          btn.style.background = '#ffffff';
+          btn.style.color = '#0f172a';
+
+          // Hide all tabs
+          document.getElementById('simulation-tab').style.display = 'none';
+          document.getElementById('field-sync-tab').style.display = 'none';
+          document.getElementById('telemetry-tab').style.display = 'none';
+
+          // Show targeted tab
+          const target = btn.getAttribute('data-tab');
+          const activeTab = document.getElementById(`${target}-tab`);
+          if (activeTab) activeTab.style.display = 'block';
+        });
+      });
+    });
+  </script>
+</body>
+</html>
